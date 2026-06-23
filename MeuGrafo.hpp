@@ -5,8 +5,12 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <algorithm>
+#include <set>
 
 #include "No.hpp"
+#include "Solucao.hpp"
+#include "Candidato.hpp"
 
 using namespace std;
 
@@ -48,7 +52,7 @@ public:
     ~MeuGrafo();
 
     // Operações obrigatórias
-    void inserirVertice(int v);
+    void inserirVertice(int v, float premio);
 
     void inserirAresta(int u,
                        int v,
@@ -74,6 +78,25 @@ public:
 
     // Algoritmo do grupo
     vector<vector<int>> componentesConexas();
+
+    //------------------------------------------------------------------------------------------------------
+
+    float getPesoAresta(int u, int v);
+
+    float getPremio(int v);
+    void setPremio(int v, float premio);
+
+    float calcularCustoArestas(const vector<pair<int,int>>& arestas);
+    float calcularPenalidadeFora(const vector<int>& verticesSelecionados);
+    Solucao avaliarSolucao(const vector<int>& verticesSelecionados,
+                           const vector<pair<int,int>>& arestasSelecionadas);
+
+    Solucao arvoreSteinerColetaPremios(int raiz);
+    Solucao arvoreSteinerColetaPremiosHeuristica(int raiz);
+
+    vector<int> dijkstraCaminho(int origem, int destino);
+    float dijkstraCusto(int origem, int destino);
+    vector<pair<int,int>> caminhoParaArestas(const vector<int>& caminho);
 };
 
 #endif
