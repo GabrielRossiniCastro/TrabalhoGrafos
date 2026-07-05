@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <algorithm>
 #include <set>
+#include <fstream>
 
 #include "No.hpp"
 #include "Solucao.hpp"
@@ -21,7 +22,6 @@ using namespace std;
     - armazenar vértices
     - armazenar adjacências
     - realizar operações obrigatórias
-    - executar algoritmo de componentes conexas
 */
 
 class MeuGrafo
@@ -38,13 +38,6 @@ private:
     */
     unordered_map<int, No *> nos;
 
-    /*
-        DFS auxiliar utilizada
-        em componentes conexas.
-    */
-    void dfs(int vertice,
-             unordered_set<int> &visitados,
-             vector<int> &componente);
 
 public:
     MeuGrafo(bool orientado);
@@ -76,11 +69,6 @@ public:
 
     void exibirGrafo();
 
-    // Algoritmo do grupo
-    vector<vector<int>> componentesConexas();
-
-    //------------------------------------------------------------------------------------------------------
-
     float getPesoAresta(int u, int v);
 
     float getPremio(int v);
@@ -91,12 +79,24 @@ public:
     Solucao avaliarSolucao(const vector<int>& verticesSelecionados,
                            const vector<pair<int,int>>& arestasSelecionadas);
 
-    Solucao arvoreSteinerColetaPremios(int raiz);
-    Solucao arvoreSteinerColetaPremiosHeuristica(int raiz);
+    Solucao algoritmoGuloso(int raiz);
+    Solucao gerarArvoreGulosa(int raiz);
 
     vector<int> dijkstraCaminho(int origem, int destino);
     float dijkstraCusto(int origem, int destino);
     vector<pair<int,int>> caminhoParaArestas(const vector<int>& caminho);
+
+    // Algoritmo do grupo - Tema A
+            
+    //------------------------------------------------------------------------------------------------------
+    // Algoritmo guloso para o PCSTP
+    Solucao algoritmoGulosoPCSTP();
+
+    // Exibe a solução encontrada no terminal
+    void imprimirSolucao(const Solucao &solucao);
+
+    // Salva a solução em arquivo texto para visualização
+    void salvarSolucaoCSAcademy(const Solucao &solucao, string nomeArquivo);
 };
 
 #endif
