@@ -96,7 +96,11 @@ public:
     void imprimirSolucao(const Solucao &solucao);
 
     // Salva a solução em arquivo texto para visualização
-    void salvarSolucaoCSAcademy(const Solucao &solucao, string nomeArquivo);
+    void salvarSolucao(const Solucao &solucao, string nomeArquivo);
+
+    // Salva os resultados da execução do algoritmo em um arquivo CSV.
+    void salvarResultadoCSV(string instancia, string algoritmo, double alpha, int iteracoes, int tamanhoBloco, 
+        unsigned int semente, double tempo, float valorSolucao);
 };
 
 #endif

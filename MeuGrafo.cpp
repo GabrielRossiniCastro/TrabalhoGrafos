@@ -1,4 +1,6 @@
 #include "MeuGrafo.hpp"
+#include <iostream>
+#include <fstream>
 
 using namespace std;
 
@@ -337,74 +339,6 @@ void MeuGrafo::exibirGrafo()
     }
 }
 
-/*
-    DFS auxiliar.
-*/
-
-void MeuGrafo::dfs(int vertice,
-                   unordered_set<int> &visitados,
-                   vector<int> &componente)
-{
-    // Marca visitado
-    visitados.insert(vertice);
-
-    // Adiciona na componente
-    componente.push_back(vertice);
-
-    // Percorre vizinhos
-    for (auto adj : nos[vertice]->adjacentes)
-    {
-        int vizinho = adj.first;
-
-        // Se não visitado
-        if (visitados.find(vizinho) == visitados.end())
-        {
-            dfs(vizinho,
-                visitados,
-                componente);
-        }
-    }
-}
-
-/*
-    Determina componentes conexas.
-*/
-
-vector<vector<int>>
-MeuGrafo::componentesConexas()
-{
-    vector<vector<int>> componentes;
-
-    unordered_set<int> visitados;
-
-    /*
-        Percorre todos os vértices.
-    */
-
-    for (auto par : nos)
-    {
-        int vertice = par.first;
-
-        /*
-            Se não visitado,
-            cria nova componente.
-        */
-
-        if (visitados.find(vertice) == visitados.end())
-        {
-            vector<int> componente;
-
-            dfs(vertice,
-                visitados,
-                componente);
-
-            componentes.push_back(componente);
-        }
-    }
-
-    return componentes;
-}
-
 //------------------------------------------------------------------------------------------------------
 
 float MeuGrafo::getPesoAresta(int u, int v)
@@ -490,12 +424,14 @@ Solucao MeuGrafo::avaliarSolucao(const vector<int> &verticesSelecionados, const 
 
     solucao.penalidadeNaoColetada = calcularPenalidadeFora(verticesSelecionados);
 
-    solucao.valorObjetivo = solucao.custoArestas - solucao.premioTotal   + solucao.penalidadeNaoColetada;
+    // No PCSTP, a função objetivo é:
+    // custo das arestas escolhidas + penalidade dos vértices que ficaram fora.
+    solucao.valorObjetivo = solucao.custoArestas + solucao.penalidadeNaoColetada;
 
     return solucao;
 }
 
-Solucao MeuGrafo::arvoreSteinerColetaPremiosHeuristica(int raiz)
+Solucao MeuGrafo::gerarArvoreGulosa(int raiz)
 {
     Solucao solucaoVazia;
 
@@ -757,4 +693,148 @@ Solucao MeuGrafo::arvoreSteinerColetaPremiosHeuristica(int raiz)
     }
 
     return avaliarSolucao(verticesSelecionados, arestasSelecionadas);
-}
+    }
+    // Executa o algoritmo guloso do problema.
+    // A ideia é escolher como raiz o vértice com maior prêmio,
+    // pois ele representa o maior ganho inicial.
+    Solucao MeuGrafo::algoritmoGulosoPCSTP()
+    {
+        int melhorRaiz = -1;
+        float maiorPremio = -1;
+
+        // Percorre todos os vértices do grafo
+        for (auto par : nos)
+        {
+            int idVertice = par.first;
+            float premioVertice = getPremio(idVertice);
+
+            // Escolha gulosa: fica com o vértice de maior prêmio
+            if (premioVertice > maiorPremio)
+            {
+                maiorPremio = premioVertice;
+                melhorRaiz = idVertice;
+            }
+        }
+
+        // Caso o grafo esteja vazio
+        if (melhorRaiz == -1)
+        {
+            return Solucao();
+        }
+
+        // A partir da raiz escolhida, gera a árvore da solução
+        return gerarArvoreGulosa(melhorRaiz);
+    }
+
+
+    // Imprime no terminal os dados principais da solução encontrada.
+    void MeuGrafo::imprimirSolucao(const Solucao &solucao)
+    {
+        cout << "\n========== SOLUCAO ENCONTRADA ==========\n";
+
+        cout << "\nVertices selecionados:\n";
+        for (int v : solucao.verticesSelecionados)
+        {
+            cout << v << " ";
+        }
+
+        cout << "\n\nArestas selecionadas:\n";
+        for (auto aresta : solucao.arestasSelecionadas)
+        {
+            cout << aresta.first << " " << aresta.second << endl;
+        }
+
+        cout << "\nCusto das arestas: " << solucao.custoArestas << endl;
+        cout << "Premio total coletado: " << solucao.premioTotal << endl;
+        cout << "Penalidade dos vertices fora: " << solucao.penalidadeNaoColetada << endl;
+        cout << "Valor objetivo: " << solucao.valorObjetivo << endl;
+    }
+
+    // Salva a solução em formato simples: uma aresta por linha.
+    void MeuGrafo::salvarSolucao(const Solucao &solucao, string nomeArquivo)
+    {
+        ofstream arquivo(nomeArquivo);
+
+        if (!arquivo.is_open())
+        {
+            cout << "Erro ao criar o arquivo da solucao." << endl;
+            return;
+        }
+
+        for (auto aresta : solucao.arestasSelecionadas)
+        {
+            arquivo << aresta.first << " " << aresta.second << endl;
+        }
+
+        arquivo.close();
+
+        cout << "\nArquivo gerado: " << nomeArquivo << endl;
+    }
+
+    // Salva os resultados da execução do algoritmo em um arquivo CSV.
+    void MeuGrafo::salvarResultadoCSV(string instancia, string algoritmo, double alpha, int iteracoes, int tamanhoBloco,
+                                      unsigned int semente, double tempo, float valorSolucao)
+    {
+        // Abre (ou cria) o arquivo CSV em modo de acréscimo.
+        ofstream arquivo("resultados.csv", ios::app);
+
+        if (!arquivo.is_open())
+        {
+            cout << "Erro ao abrir resultados.csv" << endl;
+            return;
+        }
+
+        // Se o arquivo estiver vazio, escreve o cabeçalho.
+        arquivo.seekp(0, ios::end);
+
+        if (arquivo.tellp() == 0)
+        {
+            arquivo << "DataHora;"
+                    << "Instancia;"
+                    << "Algoritmo;"
+                    << "Alpha;"
+                    << "Iteracoes;"
+                    << "Bloco;"
+                    << "Semente;"
+                    << "Tempo(s);"
+                    << "ValorObtido"
+                    << endl;
+        }
+
+        // Obtém a data e hora atual da execução.
+        time_t agora = time(nullptr);
+        tm *dataHora = localtime(&agora);
+
+        // Escreve a data e hora no formato: dia/mês/ano hora:minuto:segundo
+        arquivo << dataHora->tm_mday << "/"
+                << dataHora->tm_mon + 1 << "/"
+                << dataHora->tm_year + 1900 << " "
+                << dataHora->tm_hour << ":"
+                << dataHora->tm_min << ":"
+                << dataHora->tm_sec << ";";
+
+        // Escreve as informações gerais do teste.
+        arquivo << instancia << ";";
+        arquivo << algoritmo << ";";
+
+        if (alpha < 0)
+            arquivo << "-;";
+        else
+            arquivo << alpha << ";";
+
+        if (iteracoes < 0)
+            arquivo << "-;";
+        else
+            arquivo << iteracoes << ";";
+
+        if (tamanhoBloco < 0)
+            arquivo << "-;";
+        else
+            arquivo << tamanhoBloco << ";";
+
+        arquivo << semente << ";";
+        arquivo << tempo << ";";
+        arquivo << valorSolucao << endl;
+
+        arquivo.close();
+    }
