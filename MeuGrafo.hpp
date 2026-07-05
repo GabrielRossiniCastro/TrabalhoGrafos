@@ -70,6 +70,9 @@ public:
 
     void exibirGrafo();
 
+    // Le os dados do grafo a partir de um arquivo de entrada.
+    bool lerArquivo(string nomeArquivo);
+
     float getPesoAresta(int u, int v);
 
     float getPremio(int v);
@@ -93,9 +96,11 @@ public:
     // Algoritmo guloso para o PCSTP
     Solucao algoritmoGulosoPCSTP();
 
-    // ADICIONADO: Algoritmos para o Guloso Randomizado (GRASP)
-    Solucao algoritmoGulosoRandomizadoPCSTP(double alpha, int numIteracoes, unsigned int semente);
+    // Algoritmos para o Guloso Randomizado (GRASP)
+    Solucao algoritmoGulosoRandomizado(double alpha, int numIteracoes, unsigned int semente);
     Solucao gerarArvoreGulosaRandomizada(int raiz, double alpha, mt19937 &gerador);
+    Solucao algoritmoGulosoRandomizadoReativo(vector<double> alphas, int numIteracoes, int tamanhoBloco, unsigned int semente);
+
 
     // Exibe a solução encontrada no terminal
     void imprimirSolucao(const Solucao &solucao);

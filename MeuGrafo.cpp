@@ -2,6 +2,8 @@
 #include <iostream>
 #include <fstream>
 #include <ctime>
+#include <sstream>
+#include <vector>
 
 using namespace std;
 
@@ -341,6 +343,178 @@ void MeuGrafo::exibirGrafo()
 }
 
 //------------------------------------------------------------------------------------------------------
+
+
+bool MeuGrafo::lerArquivo(string nomeArquivo)
+{
+    ifstream arquivo(nomeArquivo);
+
+    if (!arquivo.is_open())
+    {
+        cout << "Erro ao abrir o arquivo: " << nomeArquivo << endl;
+        return false;
+    }
+
+    // Limpa o grafo atual antes de carregar a nova instancia.
+    for (auto par : nos)
+    {
+        delete par.second;
+    }
+    nos.clear();
+
+    vector<string> linhas;
+    string linha;
+
+    while (getline(arquivo, linha))
+    {
+        if (linha.empty()) continue;
+        if (linha[0] == '#' || linha[0] == 'c') continue;
+
+        linhas.push_back(linha);
+    }
+
+    arquivo.close();
+
+    if (linhas.empty())
+    {
+        cout << "Arquivo vazio ou invalido." << endl;
+        return false;
+    }
+
+    // ------------------------------------------------------------
+    // Caso 1: formato simples
+    // Primeira linha: n m
+    // Depois: id premio
+    // Depois: origem destino peso
+    // ------------------------------------------------------------
+
+    stringstream primeira(linhas[0]);
+    string primeiroToken;
+    primeira >> primeiroToken;
+
+    if (!primeiroToken.empty() && isdigit(primeiroToken[0]))
+    {
+        int quantidadeVertices = stoi(primeiroToken);
+        int quantidadeArestas;
+        primeira >> quantidadeArestas;
+
+        int indice = 1;
+
+        for (int i = 0; i < quantidadeVertices && indice < (int)linhas.size(); i++, indice++)
+        {
+            stringstream ss(linhas[indice]);
+            int id;
+            float premio;
+
+            ss >> id >> premio;
+            inserirVertice(id, premio);
+        }
+
+        for (int i = 0; i < quantidadeArestas && indice < (int)linhas.size(); i++, indice++)
+        {
+            stringstream ss(linhas[indice]);
+            int origem, destino;
+            float peso;
+
+            ss >> origem >> destino >> peso;
+
+            if (nos.find(origem) == nos.end())
+                inserirVertice(origem, 0);
+
+            if (nos.find(destino) == nos.end())
+                inserirVertice(destino, 0);
+
+            inserirAresta(origem, destino, peso);
+        }
+
+        return !nos.empty();
+    }
+
+    // ------------------------------------------------------------
+    // Caso 2: formato baseado em STP
+    // Reconhece:
+    // Nodes n
+    // E u v peso
+    // A u v peso
+    // TP v premio
+    // T v
+    // NW v premio
+    // NodeWeight v premio
+    // Prize v premio
+    // ------------------------------------------------------------
+
+    for (string linhaAtual : linhas)
+    {
+        stringstream ss(linhaAtual);
+        string palavra;
+
+        ss >> palavra;
+
+        if (palavra == "Nodes" || palavra == "NODES" || palavra == "nodes")
+        {
+            int quantidadeVertices;
+            ss >> quantidadeVertices;
+
+            for (int i = 1; i <= quantidadeVertices; i++)
+            {
+                if (nos.find(i) == nos.end())
+                    inserirVertice(i, 0);
+            }
+        }
+        else if (palavra == "E" || palavra == "e" ||
+                 palavra == "A" || palavra == "a")
+        {
+            int origem, destino;
+            float peso;
+
+            ss >> origem >> destino >> peso;
+
+            if (nos.find(origem) == nos.end())
+                inserirVertice(origem, 0);
+
+            if (nos.find(destino) == nos.end())
+                inserirVertice(destino, 0);
+
+            inserirAresta(origem, destino, peso);
+        }
+        else if (palavra == "TP" || palavra == "tp" ||
+                 palavra == "NW" || palavra == "nw" ||
+                 palavra == "NodeWeight" || palavra == "NODEWEIGHT" ||
+                 palavra == "Prize" || palavra == "PRIZE" ||
+                 palavra == "P" || palavra == "p")
+        {
+            int vertice;
+            float premio;
+
+            ss >> vertice >> premio;
+
+            if (nos.find(vertice) == nos.end())
+                inserirVertice(vertice, premio);
+            else
+                setPremio(vertice, premio);
+        }
+        else if (palavra == "T" || palavra == "t")
+        {
+            int vertice;
+            ss >> vertice;
+
+            float premioAlto = 1000000;
+
+            if (nos.find(vertice) == nos.end())
+                inserirVertice(vertice, premioAlto);
+            else
+                setPremio(vertice, premioAlto);
+        }
+    }
+
+    if (nos.empty())
+    {
+        cout << "Nenhum vertice foi carregado." << endl;
+        return false;
+    }
+
+    return true;
+}
 
 float MeuGrafo::getPesoAresta(int u, int v)
 {
@@ -841,7 +1015,7 @@ void MeuGrafo::salvarResultadoCSV(string instancia, string algoritmo, double alp
 }
 
 // =========================================================================
-// ADICIONADOS: ALGORITMO GULOSO RANDOMIZADO (GRASP)
+// ALGORITMO GULOSO RANDOMIZADO (GRASP)
 // =========================================================================
 
 Solucao MeuGrafo::gerarArvoreGulosaRandomizada(int raiz, double alpha, mt19937 &gerador)
@@ -1011,7 +1185,7 @@ Solucao MeuGrafo::gerarArvoreGulosaRandomizada(int raiz, double alpha, mt19937 &
     return avaliarSolucao(verticesSelecionados, arestasSelecionadas);
 }
 
-Solucao MeuGrafo::algoritmoGulosoRandomizadoPCSTP(double alpha, int numIteracoes, unsigned int semente)
+Solucao MeuGrafo::algoritmoGulosoRandomizado(double alpha, int numIteracoes, unsigned int semente)
 {
     Solucao melhorSolucaoGlobal;
     melhorSolucaoGlobal.valorObjetivo = 1e9; 
@@ -1056,4 +1230,88 @@ Solucao MeuGrafo::algoritmoGulosoRandomizadoPCSTP(double alpha, int numIteracoes
     }
 
     return melhorSolucaoGlobal;
+}
+
+Solucao MeuGrafo::algoritmoGulosoRandomizadoReativo(vector<double> alphas, int numIteracoes, int tamanhoBloco, unsigned int semente)
+{
+    Solucao melhorSolucao;
+    melhorSolucao.valorObjetivo = 1e9;
+
+    if (nos.empty() || alphas.empty())
+    {
+        return melhorSolucao;
+    }
+
+    mt19937 gerador(semente);
+
+    int qtdAlphas = alphas.size();
+
+    vector<double> probabilidades(qtdAlphas, 1.0 / qtdAlphas);
+    vector<double> somaResultados(qtdAlphas, 0.0);
+    vector<int> quantidadeUso(qtdAlphas, 0);
+
+    // Escolhe uma raiz inicial simples: maior prêmio.
+    int raiz = -1;
+    float maiorPremio = -1;
+
+    for (auto par : nos)
+    {
+        float premio = getPremio(par.first);
+
+        if (premio > maiorPremio)
+        {
+            maiorPremio = premio;
+            raiz = par.first;
+        }
+    }
+
+    for (int iteracao = 1; iteracao <= numIteracoes; iteracao++)
+    {
+        discrete_distribution<int> sorteioAlpha(probabilidades.begin(), probabilidades.end());
+
+        int indiceAlpha = sorteioAlpha(gerador);
+        double alphaEscolhido = alphas[indiceAlpha];
+
+        Solucao solucaoAtual = gerarArvoreGulosaRandomizada(raiz, alphaEscolhido, gerador);
+
+        somaResultados[indiceAlpha] += solucaoAtual.valorObjetivo;
+        quantidadeUso[indiceAlpha]++;
+
+        if (solucaoAtual.valorObjetivo < melhorSolucao.valorObjetivo)
+        {
+            melhorSolucao = solucaoAtual;
+        }
+
+        // A cada bloco, atualiza as probabilidades dos alphas.
+        if (iteracao % tamanhoBloco == 0)
+        {
+            vector<double> qualidade(qtdAlphas, 0.0);
+            double somaQualidade = 0.0;
+
+            for (int i = 0; i < qtdAlphas; i++)
+            {
+                if (quantidadeUso[i] > 0)
+                {
+                    double media = somaResultados[i] / quantidadeUso[i];
+
+                    // Como o problema é de minimização,
+                    // quanto menor a média, maior deve ser a qualidade.
+                    qualidade[i] = 1.0 / media;
+                }
+                else
+                {
+                    qualidade[i] = 0.0001;
+                }
+
+                somaQualidade += qualidade[i];
+            }
+
+            for (int i = 0; i < qtdAlphas; i++)
+            {
+                probabilidades[i] = qualidade[i] / somaQualidade;
+            }
+        }
+    }
+
+    return melhorSolucao;
 }
