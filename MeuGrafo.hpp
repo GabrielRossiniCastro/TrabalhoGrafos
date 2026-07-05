@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <set>
 #include <fstream>
+#include <random> // ADICIONADO PARA O RANDOMIZADO
 
 #include "No.hpp"
 #include "Solucao.hpp"
@@ -87,10 +88,14 @@ public:
     vector<pair<int,int>> caminhoParaArestas(const vector<int>& caminho);
 
     // Algoritmo do grupo - Tema A
-            
+           
     //------------------------------------------------------------------------------------------------------
     // Algoritmo guloso para o PCSTP
     Solucao algoritmoGulosoPCSTP();
+
+    // ADICIONADO: Algoritmos para o Guloso Randomizado (GRASP)
+    Solucao algoritmoGulosoRandomizadoPCSTP(double alpha, int numIteracoes, unsigned int semente);
+    Solucao gerarArvoreGulosaRandomizada(int raiz, double alpha, mt19937 &gerador);
 
     // Exibe a solução encontrada no terminal
     void imprimirSolucao(const Solucao &solucao);
@@ -99,7 +104,7 @@ public:
     void salvarSolucao(const Solucao &solucao, string nomeArquivo);
 
     // Salva os resultados da execução do algoritmo em um arquivo CSV.
-    void salvarResultadoCSV(string instancia, string algoritmo, double alpha, int iteracoes, int tamanhoBloco, 
+    void salvarResultadoCSV(string instancia, string algoritmo, double alpha, int iteracoes, int tamanhoBloco,
         unsigned int semente, double tempo, float valorSolucao);
 };
 
