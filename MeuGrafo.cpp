@@ -1031,17 +1031,20 @@ Solucao MeuGrafo::gerarArvoreGulosaRandomizada(int raiz, double alpha, mt19937 &
     naArvore.insert(raiz);
     verticesSelecionados.push_back(raiz);
 
-    auto dijkstraLocal = [&](int origem, int destino) -> vector<int> {
+    auto calcularDistanciasDaArvore = [&](const unordered_set<int> &naArvoreAtual,
+                                          unordered_map<int, float> &dist,
+                                          unordered_map<int, int> &pai) {
         const float INF = 1e9;
-        unordered_map<int, float> dist;
-        unordered_map<int, int> pai;
         unordered_set<int> visitados;
 
         for(const auto &par : nos) {
             dist[par.first] = INF;
             pai[par.first] = -1;
         }
-        dist[origem] = 0.0f;
+
+        for(int origem : naArvoreAtual) {
+            dist[origem] = 0.0f;
+        }
 
         while(true) {
             int atual = -1;
@@ -1053,7 +1056,7 @@ Solucao MeuGrafo::gerarArvoreGulosaRandomizada(int raiz, double alpha, mt19937 &
                     atual = v;
                 }
             }
-            if(atual == -1 || atual == destino) break;
+            if(atual == -1) break;
             visitados.insert(atual);
 
             for(const auto &adj : nos[atual]->adjacentes) {
@@ -1065,27 +1068,34 @@ Solucao MeuGrafo::gerarArvoreGulosaRandomizada(int raiz, double alpha, mt19937 &
                 }
             }
         }
-        if(dist[destino] >= INF) return {};
-        
+    };
+
+    auto montarCaminhoAteArvore = [&](int destino,
+                                      const unordered_map<int, int> &pai,
+                                      const unordered_set<int> &naArvoreAtual) -> vector<int> {
         vector<int> caminho;
         int atual = destino;
         while(atual != -1) {
             caminho.push_back(atual);
-            atual = pai[atual];
+
+            if(naArvoreAtual.count(atual)) {
+                break;
+            }
+
+            auto it = pai.find(atual);
+            if(it == pai.end()) {
+                return {};
+            }
+
+            atual = it->second;
         }
+
+        if(caminho.empty() || !naArvoreAtual.count(caminho.back())) {
+            return {};
+        }
+
         reverse(caminho.begin(), caminho.end());
         return caminho;
-    };
-
-    auto custoCaminho = [&](const vector<int> &caminho) -> float {
-        if(caminho.size() <= 1) return 0.0f;
-        float custo = 0.0f;
-        for(size_t i = 0; i + 1 < caminho.size(); i++) {
-            float peso = getPesoAresta(caminho[i], caminho[i + 1]);
-            if(peso < 0) return 1e9; 
-            custo += peso;
-        }
-        return custo;
     };
 
     auto premioNovoCaminho = [&](const vector<int> &caminho, const unordered_set<int> &naArvoreAtual) -> float {
@@ -1094,29 +1104,6 @@ Solucao MeuGrafo::gerarArvoreGulosaRandomizada(int raiz, double alpha, mt19937 &
             if(!naArvoreAtual.count(v)) premio += getPremio(v);
         }
         return premio;
-    };
-
-    auto melhorCaminhoParaVertice = [&](int destino, const unordered_set<int> &naArvoreAtual) -> Candidato {
-        Candidato melhor;
-        melhor.verticeDestino = destino;
-        melhor.custo = 1e9;
-        melhor.ganho = -1e9;
-
-        for(int origem : naArvoreAtual) {
-            vector<int> caminho = dijkstraLocal(origem, destino);
-            if(caminho.empty()) continue;               
-
-            float custo = custoCaminho(caminho);
-            if(custo < melhor.custo) {
-                melhor.caminho = caminho;
-                melhor.custo = custo;
-            }
-        }
-        if(!melhor.caminho.empty()) {
-            melhor.premio = premioNovoCaminho(melhor.caminho, naArvoreAtual);
-            melhor.ganho = melhor.premio - melhor.custo;
-        }
-        return melhor;
     };
 
     auto adicionarCaminhoNaSolucao = [&](const vector<int> &caminho, unordered_set<int> &naArvoreAtual, vector<int> &verticesSel, vector<pair<int, int>> &arestasSel, set<pair<int, int>> &arestasSet) {
@@ -1144,6 +1131,10 @@ Solucao MeuGrafo::gerarArvoreGulosaRandomizada(int raiz, double alpha, mt19937 &
         vector<Candidato> listaCandidatos;
         float maxGanho = -1e9;
         float minGanho = 1e9;
+        unordered_map<int, float> distancias;
+        unordered_map<int, int> pais;
+
+        calcularDistanciasDaArvore(naArvore, distancias, pais);
 
         // Avalia todos os vértices fora da árvore
         for(const auto &par : nos)
@@ -1151,7 +1142,14 @@ Solucao MeuGrafo::gerarArvoreGulosaRandomizada(int raiz, double alpha, mt19937 &
             int v = par.first;
             if(naArvore.count(v)) continue;
 
-            Candidato cand = melhorCaminhoParaVertice(v, naArvore);
+            if(distancias[v] >= 1e9) continue;
+
+            Candidato cand;
+            cand.verticeDestino = v;
+            cand.caminho = montarCaminhoAteArvore(v, pais, naArvore);
+            cand.custo = distancias[v];
+            cand.premio = premioNovoCaminho(cand.caminho, naArvore);
+            cand.ganho = cand.premio - cand.custo;
 
             if(!cand.caminho.empty() && cand.ganho > 0)
             {
