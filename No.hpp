@@ -21,10 +21,11 @@ class No
 {
 public:
     int id;
+    float premio;
 
     vector<pair<int, double>> adjacentes;
 
-    No(int id);
+    No(int id, float premio);
 };
 
 #endif

@@ -4,7 +4,8 @@
     Construtor da classe No.
 */
 
-No::No(int id)
+No::No(int id, float premio)
 {
     this->id = id;
+    this->premio = premio;
 }

@@ -5,8 +5,14 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <algorithm>
+#include <set>
+#include <fstream>
+#include <random> // ADICIONADO PARA O RANDOMIZADO
 
 #include "No.hpp"
+#include "Solucao.hpp"
+#include "Candidato.hpp"
 
 using namespace std;
 
@@ -17,7 +23,6 @@ using namespace std;
     - armazenar vértices
     - armazenar adjacências
     - realizar operações obrigatórias
-    - executar algoritmo de componentes conexas
 */
 
 class MeuGrafo
@@ -34,13 +39,6 @@ private:
     */
     unordered_map<int, No *> nos;
 
-    /*
-        DFS auxiliar utilizada
-        em componentes conexas.
-    */
-    void dfs(int vertice,
-             unordered_set<int> &visitados,
-             vector<int> &componente);
 
 public:
     MeuGrafo(bool orientado);
@@ -48,7 +46,7 @@ public:
     ~MeuGrafo();
 
     // Operações obrigatórias
-    void inserirVertice(int v);
+    void inserirVertice(int v, float premio);
 
     void inserirAresta(int u,
                        int v,
@@ -72,8 +70,47 @@ public:
 
     void exibirGrafo();
 
-    // Algoritmo do grupo
-    vector<vector<int>> componentesConexas();
+    // Le os dados do grafo a partir de um arquivo de entrada.
+    bool lerArquivo(string nomeArquivo);
+
+    float getPesoAresta(int u, int v);
+
+    float getPremio(int v);
+    void setPremio(int v, float premio);
+
+    float calcularCustoArestas(const vector<pair<int,int>>& arestas);
+    float calcularPenalidadeFora(const vector<int>& verticesSelecionados);
+    Solucao avaliarSolucao(const vector<int>& verticesSelecionados,
+                           const vector<pair<int,int>>& arestasSelecionadas);
+
+    Solucao algoritmoGuloso(int raiz);
+    Solucao gerarArvoreGulosa(int raiz);
+
+    vector<int> dijkstraCaminho(int origem, int destino);
+    float dijkstraCusto(int origem, int destino);
+    vector<pair<int,int>> caminhoParaArestas(const vector<int>& caminho);
+
+    // Algoritmo do grupo - Tema A
+           
+    //------------------------------------------------------------------------------------------------------
+    // Algoritmo guloso para o PCSTP
+    Solucao algoritmoGulosoPCSTP();
+
+    // Algoritmos para o Guloso Randomizado (GRASP)
+    Solucao algoritmoGulosoRandomizado(double alpha, int numIteracoes, unsigned int semente);
+    Solucao gerarArvoreGulosaRandomizada(int raiz, double alpha, mt19937 &gerador);
+    Solucao algoritmoGulosoRandomizadoReativo(vector<double> alphas, int numIteracoes, int tamanhoBloco, unsigned int semente);
+
+
+    // Exibe a solução encontrada no terminal
+    void imprimirSolucao(const Solucao &solucao);
+
+    // Salva a solução em arquivo texto para visualização
+    void salvarSolucao(const Solucao &solucao, string nomeArquivo);
+
+    // Salva os resultados da execução do algoritmo em um arquivo CSV.
+    void salvarResultadoCSV(string instancia, string algoritmo, double alpha, int iteracoes, int tamanhoBloco,
+        unsigned int semente, double tempo, float valorSolucao);
 };
 
 #endif
