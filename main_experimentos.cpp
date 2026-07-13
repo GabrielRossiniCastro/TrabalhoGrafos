@@ -130,6 +130,53 @@ bool prepararInstanciaSTP(const string &caminhoOriginal, const string &caminhoTe
         return false;
     }
 
+    string primeiraLinha;
+    getline(entrada, primeiraLinha);
+
+    // Os arquivos do conjunto B obtidos da OR-Library usam um formato
+    // compacto: n, m, as m arestas, a quantidade de terminais e os terminais.
+    // Convertemos esse formato para STP antes de chamar o leitor do projeto.
+    stringstream testeFormato(primeiraLinha);
+    int quantidadeVertices = 0;
+    int quantidadeArestas = 0;
+
+    if (testeFormato >> quantidadeVertices >> quantidadeArestas)
+    {
+        entrada.clear();
+        entrada.seekg(0);
+
+        entrada >> quantidadeVertices >> quantidadeArestas;
+        saida << "SECTION Graph\n";
+        saida << "Nodes " << quantidadeVertices << '\n';
+        saida << "Edges " << quantidadeArestas << '\n';
+
+        for (int i = 0; i < quantidadeArestas; i++)
+        {
+            int origem, destino;
+            double peso;
+            entrada >> origem >> destino >> peso;
+            saida << "E " << origem << ' ' << destino << ' ' << peso << '\n';
+        }
+
+        int quantidadeTerminais = 0;
+        entrada >> quantidadeTerminais;
+        saida << "END\n\nSECTION Terminals\n";
+        saida << "Terminals " << quantidadeTerminais << '\n';
+
+        for (int i = 0; i < quantidadeTerminais; i++)
+        {
+            int terminal;
+            entrada >> terminal;
+            saida << "T " << terminal << '\n';
+        }
+
+        saida << "END\nEOF\n";
+        return true;
+    }
+
+    entrada.clear();
+    entrada.seekg(0);
+
     string linha;
     bool primeiraLinhaUtil = true;
 
@@ -185,9 +232,26 @@ vector<Instancia> montarInstancias()
 {
     vector<Instancia> instancias;
 
-    instancias.push_back({"b01", "B/b01.stp", 82});
-    instancias.push_back({"b03", "B/b03.stp", 138});
-    instancias.push_back({"b08", "B/b08.stp", 104});
+    instancias.push_back({"b01", "B/steinb1.txt", 82});
+    instancias.push_back({"b02", "B/steinb2.txt", 83});
+    instancias.push_back({"b03", "B/steinb3.txt", 138});
+    instancias.push_back({"b04", "B/steinb4.txt", 59});
+    instancias.push_back({"b05", "B/steinb5.txt", 61});
+    instancias.push_back({"b06", "B/steinb6.txt", 122});
+    instancias.push_back({"b07", "B/steinb7.txt", 111});
+    instancias.push_back({"b08", "B/steinb8.txt", 104});
+    instancias.push_back({"b09", "B/steinb9.txt", 220});
+    instancias.push_back({"b10", "B/steinb10.txt", 86});
+    instancias.push_back({"b11", "B/steinb11.txt", 88});
+    instancias.push_back({"b12", "B/steinb12.txt", 174});
+    instancias.push_back({"b13", "B/steinb13.txt", 165});
+    instancias.push_back({"b14", "B/steinb14.txt", 235});
+    instancias.push_back({"b15", "B/steinb15.txt", 318});
+    instancias.push_back({"b16", "B/steinb16.txt", 127});
+    instancias.push_back({"b17", "B/steinb17.txt", 131});
+    instancias.push_back({"b18", "B/steinb18.txt", 218});
+    instancias.push_back({"oddcycle3", "B/SP/oddcycle3.stp", 4});
+    instancias.push_back({"oddwheel3", "B/SP/oddwheel3.stp", 5});
 
     return instancias;
 }

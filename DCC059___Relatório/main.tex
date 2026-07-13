@@ -1,0 +1,357 @@
+\documentclass[12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{microtype}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage[linesnumbered,ruled,vlined]{algorithm2e}
+\usepackage{hyperref}
+
+\geometry{a4paper,margin=2.5cm}
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0.15\baselineskip}
+\captionsetup{font=small,labelfont=bf}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue!50!black}
+\SetKwInput{KwIn}{Entrada}
+\SetKwInput{KwOut}{Saída}
+\SetKw{KwRet}{retorne}
+
+\title{
+    Universidade Federal de Juiz de Fora\\
+    DCC059 -- Teoria dos Grafos\\
+    \vspace{4.5cm}
+    {\Huge\textbf{Problema da Árvore de Steiner\\com Coleta de Prêmios}}\\
+    \vspace{4.5cm}
+}
+\author{
+    Gabriel Rossini Castro -- Matrícula: 202165043A\\
+    Luís Otávio Maia Barrientos -- Matrícula: 202276009\\
+    Yan Vieira Guimarães -- Matrícula: 202235015
+}
+\date{Julho de 2026}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+\newpage
+
+\tableofcontents
+\thispagestyle{empty}
+\newpage
+\setcounter{page}{1}
+
+\section{Introdução}
+
+Muitos problemas de otimização definidos em grafos não dispõem de algoritmos exatos de tempo polinomial. Nesses casos, heurísticas são uma alternativa prática para produzir soluções de boa qualidade em tempo reduzido. Este trabalho aborda o \textit{Prize-Collecting Steiner Tree Problem} (PCSTP), ou Problema da Árvore de Steiner com Coleta de Prêmios, uma generalização do problema clássico da árvore de Steiner na qual cada vértice possui um prêmio e a solução equilibra o custo de conexão com a penalidade por prêmios não coletados \cite{goemans1995general}.
+
+O objetivo do projeto foi desenvolver e comparar três heurísticas construtivas: uma estratégia gulosa determinística, uma versão gulosa randomizada baseada em Lista Restrita de Candidatos (LRC) e uma versão randomizada reativa. A implementação foi realizada em C++ sobre um tipo abstrato de dados para grafos não direcionados, ponderados nas arestas e nos vértices. Os algoritmos foram avaliados em 20 instâncias da biblioteca SteinLib \cite{koch2001steinlib}, com dez execuções independentes por configuração.
+
+O restante do relatório está organizado da seguinte forma. A Seção~\ref{sec:problema} apresenta a definição formal do problema. A Seção~\ref{sec:algoritmos} detalha as três heurísticas implementadas. A Seção~\ref{sec:experimentos} descreve as instâncias, o ambiente, os parâmetros e os resultados experimentais. Por fim, a Seção~\ref{sec:conclusoes} sintetiza as conclusões e indica possibilidades de aprimoramento.
+
+\section{Descrição do Problema}
+\label{sec:problema}
+
+Seja $G=(V,E)$ um grafo não direcionado e conexo. Cada aresta $e\in E$ possui custo não negativo $c_e$, e cada vértice $v\in V$ possui prêmio não negativo $p_v$. Uma solução é uma árvore $T=(V_T,E_T)$, com $V_T\subseteq V$ e $E_T\subseteq E$. Seu valor objetivo é
+
+\begin{equation}
+    f(T)=\sum_{e\in E_T}c_e+\sum_{v\in V\setminus V_T}p_v.
+    \label{eq:objetivo}
+\end{equation}
+
+O primeiro termo de~\eqref{eq:objetivo} representa o custo das arestas usadas para conectar os vértices selecionados; o segundo representa a penalidade correspondente aos prêmios que deixam de ser coletados. O PCSTP consiste em encontrar uma árvore $T$ que minimize $f(T)$. Assim, um vértice deve ser incluído quando o benefício de coletar seu prêmio compensa o custo necessário para conectá-lo à solução.
+
+As instâncias usadas nos experimentos pertencem originalmente ao problema clássico da árvore de Steiner. Para tratá-las pela mesma implementação, cada terminal recebeu prêmio $M=10^6$, enquanto os demais vértices receberam prêmio zero. Como $M$ é muito superior aos custos das arestas dessas instâncias, excluir um terminal é sempre desvantajoso. Desse modo, a função~\eqref{eq:objetivo} passa, na prática, a minimizar o custo da árvore que conecta todos os terminais, tornando os valores comparáveis aos melhores resultados conhecidos da SteinLib.
+
+Na implementação, a solução parcial é ampliada por caminhos mínimos. Para um caminho $P$ que liga a árvore atual a um vértice ainda não selecionado, define-se o ganho incremental por
+
+\begin{equation}
+    g(P)=\sum_{v\in V(P)\setminus V_T}p_v-\sum_{e\in E(P)\setminus E_T}c_e.
+    \label{eq:ganho}
+\end{equation}
+
+Um caminho com $g(P)>0$ reduz o valor objetivo, pois o prêmio adicional supera o custo de conexão. Os caminhos mínimos entre a árvore parcial e os demais vértices são calculados por uma versão multiorigem do algoritmo de Dijkstra.
+
+\section{Algoritmos Implementados}
+\label{sec:algoritmos}
+
+As três abordagens compartilham a mesma construção incremental. A diferença está na escolha da raiz, na seleção do caminho que será inserido e no ajuste do parâmetro de aleatoriedade $\alpha$.
+
+\subsection{Algoritmo Guloso}
+
+O algoritmo guloso escolhe como raiz o vértice de maior prêmio. Em seguida, calcula simultaneamente as menores distâncias da árvore parcial para todos os vértices externos. Para cada destino alcançável, reconstrói o caminho mínimo e calcula o ganho definido em~\eqref{eq:ganho}. O caminho de maior ganho positivo é incorporado à árvore, sem duplicar vértices ou arestas. O processo termina quando nenhum candidato melhora a solução.
+
+\begin{algorithm}[htbp]
+\caption{Construção gulosa}
+\label{alg:guloso}
+\KwIn{Grafo $G=(V,E)$, custos $c$ e prêmios $p$}
+\KwOut{Árvore $T$}
+$r\leftarrow\arg\max_{v\in V}p_v$; $T\leftarrow(\{r\},\emptyset)$\;
+\Repeat{nenhum caminho com ganho positivo seja encontrado}{
+    Calcule as menores distâncias de $V_T$ aos vértices de $V\setminus V_T$\;
+    Para cada destino, reconstrua seu caminho mínimo $P$ até $T$ e calcule $g(P)$\;
+    $P^*\leftarrow\arg\max_P g(P)$\;
+    \If{$g(P^*)>0$}{adicione a $T$ os novos vértices e arestas de $P^*$\;}
+}
+\KwRet{$T$}\;
+\end{algorithm}
+
+A escolha determinística pode produzir soluções rapidamente, mas é sensível à raiz e aos primeiros caminhos inseridos. Uma decisão local pode tornar caras as conexões futuras e não é reconsiderada, pois não foi implementada uma fase de busca local ou remoção de ramos.
+
+\subsection{Algoritmo Guloso Randomizado}
+
+A versão randomizada procura reduzir a dependência das primeiras escolhas. O parâmetro $\alpha$ não determina diretamente o tamanho da Lista Restrita de Candidatos (LRC); ele define um limiar de qualidade. Para um conjunto de caminhos candidatos com ganhos entre $g_{\min}$ e $g_{\max}$, calcula-se
+
+\begin{equation}
+    \mathrm{LRC}(\alpha)=\{P:g(P)\geq g_{\max}-\alpha(g_{\max}-g_{\min})\}.
+    \label{eq:lrc}
+\end{equation}
+
+Assim, entram na LRC todos os caminhos cujo ganho seja maior ou igual ao limiar calculado. Quando $\alpha=0$, o limiar coincide com $g_{\max}$ e somente os candidatos de maior ganho são aceitos. Conforme $\alpha$ aumenta, o limiar diminui e mais candidatos podem satisfazer o critério; portanto, o tamanho da lista é uma consequência dos ganhos observados, e não um valor definido diretamente por $\alpha$.
+
+A escolha da raiz segue a mesma ideia, mas utiliza os prêmios dos vértices. Se $p_{\min}$ e $p_{\max}$ são, respectivamente, o menor e o maior prêmio, o limiar para as raízes é
+
+\begin{equation}
+    \ell_{\mathrm{raiz}}=p_{\max}-\alpha(p_{\max}-p_{\min}).
+    \label{eq:limiar-raiz}
+\end{equation}
+
+Todo vértice com $p_v\geq\ell_{\mathrm{raiz}}$ é incluído na LRC de raízes, e uma raiz é sorteada uniformemente nessa lista. Em seguida, a construção usa o limiar de ganhos da Equação~\eqref{eq:lrc} para selecionar cada novo caminho. Cada iteração produz uma solução completa, e o algoritmo devolve a melhor delas.
+
+\begin{algorithm}[htbp]
+\caption{Guloso randomizado}
+\label{alg:randomizado}
+\KwIn{Grafo $G$, parâmetro $\alpha$, número de iterações $N$ e semente $s$}
+\KwOut{Melhor árvore encontrada $T^*$}
+Inicialize o gerador Mersenne Twister com $s$ e defina $T^*\leftarrow\emptyset$\;
+Construa a LRC de raízes usando os prêmios e $\alpha$\;
+\For{$i\leftarrow1$ \KwTo $N$}{
+    sorteie uma raiz na LRC de raízes e inicie $T$\;
+    \While{existir candidato com ganho positivo}{
+        calcule todos os caminhos candidatos e construa $\mathrm{LRC}(\alpha)$ por~\eqref{eq:lrc}\;
+        sorteie $P\in\mathrm{LRC}(\alpha)$ e acrescente-o a $T$\;
+    }
+    \If{$f(T)<f(T^*)$}{ $T^*\leftarrow T$\; }
+}
+\KwRet{$T^*$}\;
+\end{algorithm}
+
+\subsection{Algoritmo Guloso Randomizado Reativo}
+
+O algoritmo reativo evita fixar previamente um único valor de $\alpha$. Seja $A$ o conjunto de valores permitidos. Inicialmente, cada $\alpha_i\in A$ recebe probabilidade $1/|A|$. Em cada iteração, um valor é sorteado segundo essas probabilidades e usado na construção randomizada. Ao final de cada bloco, calcula-se a média $\bar f_i$ das soluções geradas com $\alpha_i$ e sua qualidade $q_i=1/\bar f_i$. As probabilidades são então atualizadas por
+
+\begin{equation}
+    \Pr(\alpha_i)=\frac{q_i}{\sum_{j=1}^{|A|}q_j}.
+    \label{eq:probabilidade}
+\end{equation}
+
+Como o PCSTP é de minimização, valores de $\alpha$ que produzem menores médias passam a ter maior probabilidade. Diferentemente da versão randomizada, a implementação reativa mantém como raiz o vértice de maior prêmio e adapta apenas a seleção dos caminhos.
+
+\begin{algorithm}[htbp]
+\caption{Guloso randomizado reativo}
+\label{alg:reativo}
+\KwIn{Grafo $G$, conjunto $A$, iterações $N$, bloco $B$ e semente $s$}
+\KwOut{Melhor árvore encontrada $T^*$}
+Defina $\Pr(\alpha_i)\leftarrow1/|A|$ para todo $\alpha_i\in A$\;
+Escolha como raiz o vértice de maior prêmio\;
+\For{$i\leftarrow1$ \KwTo $N$}{
+    sorteie $\alpha_i$ segundo as probabilidades atuais\;
+    construa $T$ pelo procedimento randomizado com a raiz fixa e $\alpha_i$\;
+    registre $f(T)$ e atualize $T^*$, se necessário\;
+    \If{$i$ for múltiplo de $B$}{atualize as probabilidades por~\eqref{eq:probabilidade}\;}
+}
+\KwRet{$T^*$}\;
+\end{algorithm}
+
+\section{Experimentos Computacionais}
+\label{sec:experimentos}
+
+\subsection{Descrição das instâncias}
+
+Foram selecionadas as 18 instâncias do conjunto B e duas instâncias pequenas do conjunto SP da SteinLib \cite{koch2001steinlib}. O conjunto B contém grafos esparsos, não direcionados, com custos inteiros aleatórios e entre 50 e 100 vértices. As instâncias \texttt{oddcycle3} e \texttt{oddwheel3} são grafos artificiais de 6 e 7 vértices. Essa seleção amplia a diversidade sem incluir os conjuntos C, D e E, que começam em 500 vértices e tornariam o experimento excessivamente demorado para as rotinas construtivas implementadas. A Tabela~\ref{tab:instancias} resume as características e os valores de referência.
+
+\begin{table}[htbp]
+\centering
+\caption{Características das instâncias utilizadas.}
+\label{tab:instancias}
+\scriptsize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lrrrr@{\hspace{9mm}}lrrrr}
+\toprule
+\textbf{Inst.} & $|V|$ & $|E|$ & $|T|$ & $z^*$ & \textbf{Inst.} & $|V|$ & $|E|$ & $|T|$ & $z^*$\\
+\midrule
+\texttt{b01} & 50 & 63 & 9 & 82 & \texttt{b11} & 75 & 150 & 19 & 88\\
+\texttt{b02} & 50 & 63 & 13 & 83 & \texttt{b12} & 75 & 150 & 38 & 174\\
+\texttt{b03} & 50 & 63 & 25 & 138 & \texttt{b13} & 100 & 125 & 17 & 165\\
+\texttt{b04} & 50 & 100 & 9 & 59 & \texttt{b14} & 100 & 125 & 25 & 235\\
+\texttt{b05} & 50 & 100 & 13 & 61 & \texttt{b15} & 100 & 125 & 50 & 318\\
+\texttt{b06} & 50 & 100 & 25 & 122 & \texttt{b16} & 100 & 200 & 17 & 127\\
+\texttt{b07} & 75 & 94 & 13 & 111 & \texttt{b17} & 100 & 200 & 25 & 131\\
+\texttt{b08} & 75 & 94 & 19 & 104 & \texttt{b18} & 100 & 200 & 50 & 218\\
+\texttt{b09} & 75 & 94 & 38 & 220 & \texttt{oddcycle3} & 6 & 9 & 3 & 4\\
+\texttt{b10} & 75 & 150 & 13 & 86 & \texttt{oddwheel3} & 7 & 9 & 4 & 5\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Ambiente computacional e parâmetros}
+
+Os algoritmos foram implementados em C++ e compilados com o \texttt{g++} 16.1.0 (MSYS2), opção de otimização \texttt{-O2}, em ambiente Windows de 64 bits. Os experimentos foram executados em uma máquina com processador AMD64 e 12 processadores lógicos. A medição de tempo usou \texttt{std::chrono::high\_resolution\_clock}. A aleatoriedade foi produzida por \texttt{std::mt19937}; as sementes foram registradas nos arquivos de resultados para permitir a reprodução das execuções.
+
+Cada configuração foi executada dez vezes por instância, com sementes distintas. O guloso randomizado foi testado com $\alpha\in\{0{,}2,0{,}3,0{,}4\}$ e 30 construções em cada execução. O reativo realizou 300 construções, usou o mesmo conjunto de valores de $\alpha$ e atualizou as probabilidades em blocos de 30 iterações. No total, foram registradas 1.000 execuções (20 instâncias, dez sementes e cinco configurações). Esses valores atendem aos limites mínimos definidos para o experimento.
+
+\subsection{Resultados obtidos}
+
+Para uma solução de valor $z$ e um melhor valor conhecido $z^*$, o desvio percentual foi calculado por
+
+\begin{equation}
+    \operatorname{desvio}(z)=100\frac{z-z^*}{z^*}.
+    \label{eq:desvio}
+\end{equation}
+
+Logo, desvio zero indica que o algoritmo alcançou o valor de referência, e valores menores são preferíveis. As médias ao final das tabelas atribuem o mesmo peso a cada instância. Em cada linha, os menores desvios entre as abordagens implementadas estão em negrito.
+
+\begin{table}[htbp]
+\centering
+\caption{Desvio percentual do melhor resultado nas dez execuções.}
+\label{tab:desvio-melhor}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrr}
+\toprule
+& & \multicolumn{3}{c}{\textbf{Randomizado}} &\\
+\cmidrule(lr){3-5}
+\textbf{Instância} & \textbf{Guloso} & $\boldsymbol{\alpha=0{,}2}$ & $\boldsymbol{\alpha=0{,}3}$ & $\boldsymbol{\alpha=0{,}4}$ & \textbf{Reativo}\\
+\midrule
+\texttt{b01} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00}\\
+\texttt{b02} & 8,43 & \textbf{1,20} & \textbf{1,20} & \textbf{1,20} & 2,41\\
+\texttt{b03} & \textbf{0,72} & \textbf{0,72} & \textbf{0,72} & \textbf{0,72} & \textbf{0,72}\\
+\texttt{b04} & 5,08 & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00}\\
+\texttt{b05} & 4,92 & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00}\\
+\texttt{b06} & 4,10 & \textbf{0,82} & \textbf{0,82} & \textbf{0,82} & 2,46\\
+\texttt{b07} & 6,31 & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & 0,90\\
+\texttt{b08} & 3,85 & 0,96 & \textbf{0,00} & 0,96 & 2,88\\
+\texttt{b09} & 2,27 & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00}\\
+\texttt{b10} & \textbf{0,00} & 4,65 & 3,49 & 2,33 & 4,65\\
+\texttt{b11} & 3,41 & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & 2,27\\
+\texttt{b12} & 1,72 & \textbf{0,00} & \textbf{0,00} & 0,57 & 1,15\\
+\texttt{b13} & 4,85 & 4,85 & \textbf{3,64} & \textbf{3,64} & 4,85\\
+\texttt{b14} & 2,55 & \textbf{0,00} & 0,43 & 0,85 & \textbf{0,00}\\
+\texttt{b15} & 3,14 & \textbf{0,31} & 0,63 & 0,63 & 0,63\\
+\texttt{b16} & 4,72 & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & 3,15\\
+\texttt{b17} & 0,76 & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00}\\
+\texttt{b18} & 5,96 & 2,29 & 2,29 & \textbf{0,92} & 1,38\\
+\texttt{oddcycle3} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00}\\
+\texttt{oddwheel3} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00}\\
+\midrule
+\textbf{Média} & 3,14 & 0,79 & 0,66 & \textbf{0,63} & 1,37\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Conforme a Tabela~\ref{tab:desvio-melhor}, o guloso alcançou o valor de referência em quatro das 20 instâncias, enquanto cada uma das configurações randomizadas o alcançou em pelo menos dez. Os maiores ganhos da randomização ocorreram em \texttt{b02}, \texttt{b04}, \texttt{b05}, \texttt{b07}, \texttt{b09}, \texttt{b11} e \texttt{b16}. A exceção mais clara foi \texttt{b10}, na qual o guloso atingiu a referência e os demais ficaram entre 2,33\% e 4,65\%. Na média das 20 instâncias, $\alpha=0{,}4$ obteve o menor desvio do melhor resultado, 0,63\%, seguido por $\alpha=0{,}3$, com 0,66\%; o guloso apresentou 3,14\%.
+
+\begin{table}[htbp]
+\centering
+\caption{Desvio percentual da média dos resultados das dez execuções.}
+\label{tab:desvio-media}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrr}
+\toprule
+& & \multicolumn{3}{c}{\textbf{Randomizado}} &\\
+\cmidrule(lr){3-5}
+\textbf{Instância} & \textbf{Guloso} & $\boldsymbol{\alpha=0{,}2}$ & $\boldsymbol{\alpha=0{,}3}$ & $\boldsymbol{\alpha=0{,}4}$ & \textbf{Reativo}\\
+\midrule
+\texttt{b01} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00}\\
+\texttt{b02} & 8,43 & \textbf{1,20} & \textbf{1,20} & \textbf{1,20} & 2,41\\
+\texttt{b03} & \textbf{0,72} & \textbf{0,72} & \textbf{0,72} & \textbf{0,72} & \textbf{0,72}\\
+\texttt{b04} & 5,08 & 1,53 & 0,17 & \textbf{0,00} & \textbf{0,00}\\
+\texttt{b05} & 4,92 & 0,66 & 0,49 & 0,49 & \textbf{0,00}\\
+\texttt{b06} & 4,10 & 2,79 & \textbf{2,46} & 2,54 & \textbf{2,46}\\
+\texttt{b07} & 6,31 & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & 0,90\\
+\texttt{b08} & 3,85 & \textbf{0,96} & 3,94 & 4,71 & 4,04\\
+\texttt{b09} & 2,27 & 0,09 & 0,18 & 0,50 & \textbf{0,00}\\
+\texttt{b10} & \textbf{0,00} & 4,65 & 4,42 & 3,95 & 4,65\\
+\texttt{b11} & 3,41 & \textbf{1,36} & 1,70 & 2,27 & 2,27\\
+\texttt{b12} & 1,72 & \textbf{0,69} & 0,80 & 1,32 & 1,15\\
+\texttt{b13} & 4,85 & 4,97 & 4,79 & \textbf{4,55} & 4,85\\
+\texttt{b14} & 2,55 & 1,19 & 1,36 & 2,26 & \textbf{0,04}\\
+\texttt{b15} & 3,14 & \textbf{0,97} & 1,23 & 1,67 & 1,07\\
+\texttt{b16} & 4,72 & \textbf{1,26} & 1,42 & 1,57 & 3,15\\
+\texttt{b17} & 0,76 & \textbf{0,00} & 0,46 & 0,23 & \textbf{0,00}\\
+\texttt{b18} & 5,96 & 3,03 & 3,03 & 3,07 & \textbf{2,06}\\
+\texttt{oddcycle3} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00}\\
+\texttt{oddwheel3} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00} & \textbf{0,00}\\
+\midrule
+\textbf{Média} & 3,14 & \textbf{1,30} & 1,42 & 1,55 & 1,49\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A Tabela~\ref{tab:desvio-media} evidencia maior estabilidade do randomizado com $\alpha=0{,}2$: seu desvio médio foi 1,30\%, o menor entre as cinco configurações. Esse valor de $\alpha$ também foi a melhor abordagem em \texttt{b08}, \texttt{b11}, \texttt{b12}, \texttt{b15} e \texttt{b16}. Valores maiores aumentaram a diversidade, mas também admitiram candidatos mais fracos na LRC, elevando a média geral para 1,42\% com $\alpha=0{,}3$ e 1,55\% com $\alpha=0{,}4$. O reativo obteve 1,49\% e foi especialmente competitivo em \texttt{b04}, \texttt{b05}, \texttt{b09}, \texttt{b14}, \texttt{b17} e \texttt{b18}. Ainda assim, sua adaptação não superou o melhor $\alpha$ fixo na média global, possivelmente porque a regra $1/\bar f_i$ gera probabilidades próximas quando os valores objetivos são semelhantes.
+
+\begin{table}[htbp]
+\centering
+\caption{Tempo médio das dez execuções, em segundos.}
+\label{tab:tempo}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrr}
+\toprule
+& & \multicolumn{3}{c}{\textbf{Randomizado}} &\\
+\cmidrule(lr){3-5}
+\textbf{Instância} & \textbf{Guloso} & $\boldsymbol{\alpha=0{,}2}$ & $\boldsymbol{\alpha=0{,}3}$ & $\boldsymbol{\alpha=0{,}4}$ & \textbf{Reativo}\\
+\midrule
+\texttt{b01} & 0,0488 & 0,0084 & 0,0080 & 0,0086 & 0,0811\\
+\texttt{b02} & 0,0763 & 0,0100 & 0,0094 & 0,0095 & 0,0898\\
+\texttt{b03} & 0,1493 & 0,0121 & 0,0124 & 0,0132 & 0,1279\\
+\texttt{b04} & 0,0620 & 0,0094 & 0,0088 & 0,0089 & 0,0887\\
+\texttt{b05} & 0,0866 & 0,0117 & 0,0118 & 0,0114 & 0,1058\\
+\texttt{b06} & 0,2038 & 0,0183 & 0,0175 & 0,0180 & 0,1845\\
+\texttt{b07} & 0,3196 & 0,0222 & 0,0221 & 0,0219 & 0,2233\\
+\texttt{b08} & 0,5448 & 0,0285 & 0,0281 & 0,0305 & 0,2760\\
+\texttt{b09} & 1,0360 & 0,0370 & 0,0403 & 0,0420 & 0,3818\\
+\texttt{b10} & 0,3848 & 0,0232 & 0,0225 & 0,0221 & 0,2362\\
+\texttt{b11} & 0,5560 & 0,0273 & 0,0270 & 0,0290 & 0,2733\\
+\texttt{b12} & 1,2825 & 0,0439 & 0,0446 & 0,0465 & 0,4614\\
+\texttt{b13} & 1,1614 & 0,0393 & 0,0402 & 0,0386 & 0,3625\\
+\texttt{b14} & 1,7779 & 0,0518 & 0,0523 & 0,0526 & 0,5265\\
+\texttt{b15} & 3,7234 & 0,0753 & 0,0777 & 0,0781 & 0,7769\\
+\texttt{b16} & 1,0414 & 0,0339 & 0,0337 & 0,0344 & 0,3754\\
+\texttt{b17} & 1,8772 & 0,0532 & 0,0536 & 0,0548 & 0,5065\\
+\texttt{b18} & 3,9820 & 0,0799 & 0,0800 & 0,0822 & 0,8222\\
+\texttt{oddcycle3} & 0,0000 & 0,0003 & 0,0003 & 0,0003 & 0,0026\\
+\texttt{oddwheel3} & 0,0001 & 0,0004 & 0,0004 & 0,0004 & 0,0038\\
+\midrule
+\textbf{Média} & 0,9157 & 0,0293 & 0,0295 & 0,0301 & 0,2953\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Os tempos da Tabela~\ref{tab:tempo} crescem com o tamanho, a densidade e a quantidade de terminais. O reativo consumiu em média 0,2953 segundos, aproximadamente dez vezes o tempo de uma configuração randomizada, coerentemente com suas 300 construções contra 30. O guloso ficou inesperadamente acima dos randomizados nas instâncias do conjunto B. Isso sugere diferenças de custo entre as rotinas internas usadas pelas duas versões; portanto, os tempos caracterizam as implementações atuais, e não somente as estratégias abstratas. Mesmo nas instâncias maiores, todos os tempos médios ficaram abaixo de quatro segundos.
+
+Os resultados cobrem todo o conjunto B e duas instâncias do conjunto SP, oferecendo evidência mais ampla que a avaliação inicial. Ainda assim, representam apenas grafos pequenos e esparsos; logo, não permitem afirmar superioridade geral em todas as classes de PCSTP.
+
+\section{Conclusões}
+\label{sec:conclusoes}
+
+Este trabalho apresentou uma modelagem em grafos e três heurísticas construtivas para o Problema da Árvore de Steiner com Coleta de Prêmios. A implementação reuniu leitura de instâncias STP, representação por listas de adjacência, caminhos mínimos, avaliação da função objetivo, geração pseudoaleatória reproduzível e coleta automatizada de resultados.
+
+Nas 20 instâncias avaliadas, as versões randomizadas reduziram substancialmente o desvio do guloso. Considerando o melhor resultado das dez execuções, $\alpha=0{,}4$ obteve o menor desvio médio, 0,63\%, contra 3,14\% do guloso. Considerando a média das dez execuções, $\alpha=0{,}2$ foi mais estável e alcançou 1,30\%. O reativo foi competitivo em diversas instâncias, mas sua média global de 1,49\% não superou a melhor parametrização fixa. Portanto, dentro do conjunto testado, o randomizado com $\alpha=0{,}2$ forneceu a melhor combinação de qualidade média, estabilidade e tempo.
+
+As principais dificuldades do projeto foram adaptar os formatos STP e OR-Library ao modelo com prêmios, preservar a conectividade durante a construção, evitar duplicação de arestas e organizar um experimento reproduzível com 1.000 execuções. Como trabalhos futuros, recomenda-se avaliar conjuntos de maior porte, incluir uma busca local para remover ramos caros ou substituir caminhos, empregar uma regra reativa que intensifique mais claramente os melhores valores de $\alpha$ e perfilar as rotinas de caminho mínimo para explicar e reduzir o tempo do algoritmo guloso.
+
+\bibliographystyle{plain}
+\bibliography{bibliografia}
+
+\end{document}
