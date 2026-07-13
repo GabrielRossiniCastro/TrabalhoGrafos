@@ -1,324 +1,226 @@
-TRABALHO 2 - TEORIA DOS GRAFOS
-TEMA A - Problema da Arvore de Steiner com Coleta de Premios
+# Trabalho 2 - Teoria dos Grafos
 
-INSTRUCOES DE COMPILACAO E EXECUCAO
+**Tema A:** Problema da Árvore de Steiner com Coleta de Prêmios  
+**Disciplina:** DCC059 - Teoria dos Grafos - UFJF
 
-==================================================
+## Integrantes
 
-REQUISITOS:
+- Gabriel Rossini Castro - 202165043A
+- Luís Otávio Maia Barrientos - 202276009
+- Yan Vieira Guimarães - 202235015
 
-- Compilador C++ com suporte a C++11 ou superior
-- g++ instalado
-- No Windows: MinGW/MSYS2
-- No Linux: GCC/G++
+## Descrição
 
-==================================================
+O projeto implementa heurísticas para o *Prize-Collecting Steiner Tree Problem in Graphs* (PCSTP), ou Problema da Árvore de Steiner com Coleta de Prêmios.
 
-ARQUIVOS PRINCIPAIS DO PROJETO:
+O problema considera um grafo não direcionado com custos nas arestas e prêmios nos vértices. A função objetivo minimizada é:
 
-- main.cpp
-- MeuGrafo.cpp
-- MeuGrafo.hpp
-- No.cpp
-- No.hpp
-- Solucao.hpp
-- Candidato.hpp
+```text
+valor da solução = custo das arestas selecionadas
+                    + penalidade dos vértices não selecionados
+```
 
-==================================================
+Foram implementadas três abordagens:
 
-COMPILACAO
+1. algoritmo guloso;
+2. algoritmo guloso randomizado;
+3. algoritmo guloso randomizado reativo.
+
+## Requisitos
+
+- compilador C++ com suporte a C++11 ou superior;
+- GCC/G++ no Linux ou MinGW/MSYS2 no Windows;
+- terminal aberto na pasta raiz do projeto.
+
+Os experimentos finais foram compilados com `g++ 16.1.0`, utilizando a opção de otimização `-O2`.
+
+## Arquivos principais
+
+- `main.cpp`: execução demonstrativa dos algoritmos;
+- `main_experimentos.cpp`: execução completa dos experimentos;
+- `MeuGrafo.cpp` e `MeuGrafo.hpp`: representação do grafo e algoritmos;
+- `No.cpp` e `No.hpp`: representação dos vértices;
+- `Candidato.hpp`: estrutura auxiliar para candidatos;
+- `Solucao.hpp`: estrutura que armazena uma solução;
+- `B/`: instâncias utilizadas nos experimentos;
+- `DCC059___Relatório/`: fontes LaTeX do relatório.
+
+## Compilação
+
+### Programa demonstrativo
 
 Linux:
 
-g++ main.cpp MeuGrafo.cpp No.cpp -o programa
+```bash
+g++ -std=c++11 -O2 main.cpp MeuGrafo.cpp No.cpp -o programa
+```
 
 Windows:
 
-g++ main.cpp MeuGrafo.cpp No.cpp -o programa.exe
+```powershell
+g++ -std=c++11 -O2 main.cpp MeuGrafo.cpp No.cpp -o programa.exe
+```
 
-==================================================
-
-EXECUCAO
+### Executor dos experimentos
 
 Linux:
 
+```bash
+g++ -std=c++11 -O2 main_experimentos.cpp MeuGrafo.cpp No.cpp -o programa_experimentos
+```
+
+Windows:
+
+```powershell
+g++ -std=c++11 -O2 main_experimentos.cpp MeuGrafo.cpp No.cpp -o programa_experimentos.exe
+```
+
+## Execução
+
+### Demonstração
+
+Linux:
+
+```bash
 ./programa
+```
 
 Windows:
 
+```powershell
 .\programa.exe
+```
 
-==================================================
+### Experimento completo com 20 instâncias
 
-DESCRICAO DO PROJETO
+Linux:
 
-Este projeto implementa heuristicas para o problema
-Prize-Collecting Steiner Tree Problem in Graphs (PCSTP), tambem conhecido
-como Problema da Arvore de Steiner com Coleta de Premios.
+```bash
+./programa_experimentos
+```
 
-O problema consiste em encontrar uma arvore em um grafo nao direcionado,
-considerando:
+Windows:
 
-- peso nas arestas;
-- premio nos vertices;
-- penalidade para vertices que nao entram na solucao.
+```powershell
+.\programa_experimentos.exe
+```
 
-A funcao objetivo utilizada e:
+Também é possível executar somente uma instância ou um conjunto filtrado por prefixo:
 
-valor da solucao = custo das arestas escolhidas + penalidade dos vertices fora da solucao
+```powershell
+.\programa_experimentos.exe b01
+.\programa_experimentos.exe b01,b02,b03
+.\programa_experimentos.exe oddcycle3
+```
 
-Quanto menor o valor da solucao, melhor e o resultado encontrado.
+**Atenção:** cada nova execução de `programa_experimentos` recria os arquivos CSV de resultados. Para preservar o experimento completo, faça uma cópia dos CSVs antes de executar apenas um filtro.
 
-==================================================
+## Instâncias
 
-LEITURA DE ARQUIVOS
+O experimento final utiliza 20 instâncias da SteinLib:
 
-O programa possui leitura de instancias por arquivo.
+- `b01` a `b18`, pertencentes ao conjunto B, com 50 a 100 vértices;
+- `oddcycle3` e `oddwheel3`, pertencentes ao conjunto SP.
 
-Atualmente, a funcao de leitura aceita dois tipos de entrada:
+Os arquivos necessários estão em:
 
-1) Formato simples utilizado nos testes
+```text
+B/steinb1.txt
+...
+B/steinb18.txt
+B/SP/oddcycle3.stp
+B/SP/oddwheel3.stp
+```
 
-Exemplo:
+Os arquivos do conjunto B estão no formato compacto da OR-Library. O executor converte esse formato internamente para STP antes de carregar cada instância. Os arquivos do conjunto SP já utilizam o formato STP.
 
-5 5
-1 10
-2 8
-3 5
-4 15
-5 3
-1 2 2
-2 3 3
-3 4 1
-1 4 7
-4 5 10
+Para usar as instâncias clássicas de Steiner na implementação do PCSTP, cada terminal recebe prêmio `1000000`, enquanto os demais vértices recebem prêmio zero. Dessa forma, excluir um terminal é sempre desvantajoso e o valor objetivo corresponde ao custo da árvore que conecta os terminais.
 
-Onde:
+## Parâmetros dos experimentos
 
-- a primeira linha contem a quantidade de vertices e arestas;
-- em seguida, cada linha contem: id_do_vertice premio;
-- depois, cada linha contem: origem destino peso.
+Cada configuração é executada dez vezes para cada instância, usando uma semente diferente em cada execução.
 
-2) Formato baseado em .stp
+### Guloso
 
-A leitura tambem reconhece palavras comuns de instancias .stp, como:
+- uma construção determinística por execução;
+- raiz escolhida pelo maior prêmio;
+- inclusão do caminho de maior ganho positivo.
 
-- Nodes
-- E
-- A
-- TP
-- T
-- NW
-- NodeWeight
-- Prize
+### Guloso randomizado
 
-Exemplo:
+- valores de `alpha`: `0.2`, `0.3` e `0.4`;
+- 30 construções por execução;
+- retorno da melhor solução encontrada.
 
-SECTION Graph
-Nodes 5
-Edges 5
-E 1 2 2
-E 2 3 3
-E 3 4 1
-E 1 4 7
-E 4 5 10
-END
+O parâmetro `alpha` não define diretamente o tamanho da Lista Restrita de Candidatos (LRC). Ele determina um limiar de qualidade:
 
-SECTION Terminals
-TP 1 10
-TP 2 8
-TP 3 5
-TP 4 15
-TP 5 3
-END
+```text
+limiar = valorMaximo - alpha * (valorMaximo - valorMinimo)
+```
 
-EOF
+Para a escolha da raiz, são utilizados os prêmios mínimo e máximo. Para a escolha dos caminhos, são utilizados os ganhos mínimo e máximo. Entram na LRC todos os candidatos cujo valor seja maior ou igual ao limiar.
 
-Observacao:
-Como existem variacoes no formato .stp, a leitura foi feita de forma
-flexivel para reconhecer os principais padroes encontrados em instancias
-de problemas de Steiner e PCSTP.
+### Guloso randomizado reativo
 
-==================================================
+- valores de `alpha`: `0.2`, `0.3` e `0.4`;
+- 300 construções por execução;
+- blocos de 30 iterações;
+- probabilidades inicialmente uniformes;
+- atualização das probabilidades ao final de cada bloco.
 
-ALGORITMO GULOSO
+Como o problema é de minimização, valores de `alpha` associados a menores médias recebem maior probabilidade nas iterações seguintes.
 
-O algoritmo guloso implementado escolhe inicialmente o vertice de maior
-premio como raiz da solucao.
+## Sementes
 
-A partir dessa raiz, a arvore e construida de forma incremental. A cada
-passo, o algoritmo avalia vertices fora da arvore e calcula o menor
-caminho ate a solucao parcial. Em seguida, calcula o ganho:
+O executor utiliza sementes determinísticas para permitir a reprodução dos resultados. A semente é calculada a partir de uma base igual a `100000`, do índice da instância e do número da execução.
 
-ganho = premio dos novos vertices - custo do caminho
+Todas as sementes utilizadas ficam registradas em `resultados_execucoes.csv`. A melhor semente de cada configuração também aparece em `resultados_resumo.csv`.
 
-O caminho com maior ganho positivo e adicionado a solucao. O processo
-termina quando nao existe mais nenhum candidato com ganho positivo.
+## Arquivos gerados
 
-Ao final, o programa calcula:
+O executor dos experimentos produz:
 
-- vertices selecionados;
-- arestas selecionadas;
-- custo total das arestas;
-- premio total coletado;
-- penalidade dos vertices fora;
-- valor objetivo da solucao.
+- `resultados_execucoes.csv`: todas as 1.000 execuções;
+- `resultados_resumo.csv`: melhor valor, média, tempo e desvios por configuração;
+- `tabela_desvio_melhor.csv`: desvio percentual do melhor resultado das dez execuções;
+- `tabela_desvio_media.csv`: desvio percentual da média das dez execuções;
+- `tabela_tempo_medio.csv`: tempo médio das dez execuções;
+- `linhas_latex_relatorio.txt`: linhas formatadas para as tabelas do relatório.
 
-==================================================
+O desvio percentual é calculado por:
 
-ALGORITMO GULOSO RANDOMIZADO
+```text
+desvio = 100 * (valorObtido - melhorConhecido) / melhorConhecido
+```
 
-O algoritmo guloso randomizado utiliza a mesma ideia do algoritmo guloso,
-mas nao escolhe necessariamente sempre o melhor candidato.
+Um desvio igual a zero indica que o algoritmo alcançou o melhor valor conhecido da instância.
 
-Ele utiliza o parametro alpha para montar uma Lista Restrita de Candidatos
-(RCL). Essa lista contem candidatos considerados bons de acordo com o
-ganho calculado.
+## Relatório
 
-Depois, um candidato e sorteado dentro da RCL.
+O relatório final está disponível em:
 
-Parametros utilizados:
+```text
+DCC059___Relatório/main.tex
+DCC059___Relatório/bibliografia.bib
+DCC059___Relatório.pdf
+```
 
-- alpha: controla o tamanho/criterio da lista restrita de candidatos;
-- numero de iteracoes: quantidade de solucoes construidas;
-- semente: permite repetir os mesmos sorteios.
+Para compilar no Overleaf, envie a pasta `DCC059___Relatório` completa. Para compilar localmente, execute PDFLaTeX e BibTeX na seguinte ordem:
 
-Ao final das iteracoes, o algoritmo retorna a melhor solucao encontrada.
+```text
+PDFLaTeX
+BibTeX
+PDFLaTeX
+PDFLaTeX
+```
 
-==================================================
+## Resultados finais resumidos
 
-ALGORITMO GULOSO RANDOMIZADO REATIVO
+No experimento com 20 instâncias:
 
-O algoritmo guloso randomizado reativo tambem utiliza uma lista de valores
-possiveis para alpha.
+- foram registradas 1.000 execuções;
+- o menor desvio médio do melhor resultado foi `0,63%`, com `alpha = 0.4`;
+- o menor desvio médio considerando as dez execuções foi `1,30%`, com `alpha = 0.2`;
+- o desvio médio do guloso foi `3,14%`.
 
-Inicialmente, todos os valores de alpha possuem a mesma probabilidade de
-serem escolhidos. Durante a execucao, o algoritmo observa quais valores
-de alpha estao gerando melhores solucoes.
-
-A cada bloco de iteracoes, as probabilidades sao atualizadas:
-
-- alphas que geraram solucoes melhores passam a ter maior chance de escolha;
-- alphas que geraram solucoes piores passam a ter menor chance de escolha.
-
-Parametros utilizados:
-
-- lista de valores de alpha;
-- numero de iteracoes;
-- tamanho do bloco;
-- semente de randomizacao.
-
-Esse metodo torna o algoritmo adaptativo, pois ele ajusta automaticamente
-a escolha dos valores de alpha durante a execucao.
-
-==================================================
-
-SEMENTE DE RANDOMIZACAO
-
-A semente de randomizacao e gerada uma unica vez no inicio da execucao,
-com base na data/hora atual.
-
-Ela e impressa no terminal e tambem salva no arquivo resultados.csv.
-
-Isso permite repetir um teste especifico, caso seja necessario.
-
-==================================================
-
-SAIDAS GERADAS
-
-Ao executar o programa, sao gerados arquivos de solucao e um arquivo CSV
-com os resultados dos testes.
-
-1) Arquivos de solucao
-
-Exemplos:
-
-- solucao_guloso.txt
-- solucao_randomizado.txt
-- solucao_reativo.txt
-
-Cada arquivo contem as arestas da solucao encontrada, uma por linha, no
-formato:
-
-origem destino
-
-Exemplo:
-
-1 2
-2 3
-3 4
-
-Esse formato facilita copiar e colar a solucao em ferramentas de
-visualizacao de grafos, como o Graph Editor do CS Academy.
-
-2) resultados.csv
-
-Contem os dados da execucao dos algoritmos, com informacoes como:
-
-- data e hora do teste;
-- instancia;
-- algoritmo executado;
-- valor de alpha;
-- numero de iteracoes;
-- tamanho do bloco;
-- semente de randomizacao;
-- tempo de execucao;
-- valor objetivo da solucao.
-
-No algoritmo guloso simples, os campos alpha, iteracoes e bloco sao
-preenchidos com "-", pois esses parametros sao utilizados apenas nos
-algoritmos randomizados.
-
-==================================================
-
-EXEMPLO DE SAIDA NO TERMINAL
-
-Semente utilizada: 1783259625
-
-Instancia carregada com sucesso.
-
-===== TESTE DO ALGORITMO GULOSO =====
-
-========== SOLUCAO ENCONTRADA ==========
-
-Vertices selecionados:
-4 3 2 1
-
-Arestas selecionadas:
-3 4
-2 3
-1 2
-
-Custo das arestas: 6
-Premio total coletado: 38
-Penalidade dos vertices fora: 3
-Valor objetivo: 9
-
-Arquivo gerado: solucao_guloso.txt
-
-===== TESTE DO ALGORITMO GULOSO RANDOMIZADO =====
-
-Arquivo gerado: solucao_randomizado.txt
-
-===== TESTE DO GULOSO RANDOMIZADO REATIVO =====
-
-Arquivo gerado: solucao_reativo.txt
-
-Resultado salvo em resultados.csv
-
-==================================================
-
-OBSERVACOES
-
-O main.cpp atual cria uma instancia de teste em arquivo para validar:
-
-- leitura de arquivo;
-- algoritmo guloso;
-- algoritmo guloso randomizado;
-- algoritmo guloso randomizado reativo;
-- impressao da solucao;
-- geracao dos arquivos de solucao;
-- registro dos resultados em CSV.
-
-Para testar outras instancias, basta alterar o arquivo de entrada carregado
-pela funcao lerArquivo.
+Os resultados completos e sua análise estão apresentados no relatório.
